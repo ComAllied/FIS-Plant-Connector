@@ -18,3 +18,15 @@ Das beobachtete FIS-Schema liegt als lokaler Entwurf mit Status `candidate` vor.
 - Wenn eine bekannte Fahrzeuginstanz ein Ereignis ohne einordenbare Zeit enthält, muss die betroffene Folge vor dem Kantenexport als unsicher bewertet werden. Zeilen mit unbekannter Fahrzeuginstanz werden separat gezählt. Lesestellen mit gültiger Identität bleiben als Knoten erhalten.
 - Bei einer bestätigten stabilen Event-ID wird Deduplizierung auf nachgewiesen redundante Ereignisse begrenzt. Konflikte mit derselben ID werden als Datenqualitätsfall erfasst. Lange Lücken werden für die spätere Bewertung gekennzeichnet.
 - Der DFG beschreibt aufeinanderfolgende Beobachtungen an Lesestellen. Die physische Fördertopologie ist ein separates Validierungsziel. Layout und beobachteter Fahrzeugzustand werden separat vom DFG gespeichert.
+
+## Wiederholbare Aktualisierung
+
+Eine Aktualisierung berechnet den Graphen aus dem vollständigen aktuellen Importbestand. Dadurch können später eintreffende Lesungen auch ältere Nachbarschaften korrigieren. Die Dateien werden vor dem Scan inventarisiert und nach der Berechnung erneut geprüft. Der Export enthält einen Fingerabdruck der sortierten Datei-Hashes und des Mappings. Gleichlautende Eingabepfade werden aufgelöst und einmal gelesen. Bytegleiche Kopien unter unterschiedlichen Pfaden werden als solche gezählt. Die fachliche Deduplizierung setzt eine bestätigte Event-ID voraus.
+
+Gleichzeitige Aktualisierungen für dasselbe Ausgabeziel werden gesperrt. DuckDB erhält pro Lauf ein eigenes System-Temp-Verzeichnis für mögliche Zwischendateien. Die Ausgabe wird erst nach einer erfolgreichen Berechnung atomar ersetzt. Die API liest die letzte gespeicherte Version, und der Browser erkennt neue Versionen anhand der Graph-ID. Ändern sich nur Gewichte oder Zähler, behält die Ansicht ihr Layout.
+
+## Metriken und Layout
+
+- Ausgehende Anteile verwenden die Anzahl gültiger Paare je Ausgangsknoten als Nenner. Aktive Tage zählen UTC-Tage des Quellereignisses. Zeitmaße ergeben sich aus der Differenz der beiden Passagezeiten.
+- Varianten sind beobachtete, innerhalb des Eingabefensters eindeutig geordnete Lesestellenfolgen. Die Zusammenfassung gibt höchstens 20 Folgen aus. Fachlicher Prozessbeginn und Prozessende bleiben offen.
+- ELK berechnet Gruppen und Kanten im Browser-Worker. Ab mehr als 220 Knoten oder 700 Kanten wird ein deterministisches Linienraster verwendet. Das Raster hält Karten disjunkt und kann höhere Kantenkreuzungen haben. Linien- und Gewichtsfilter ändern die Anzeige. Das exportierte Layout enthält den ganzen Graphen.

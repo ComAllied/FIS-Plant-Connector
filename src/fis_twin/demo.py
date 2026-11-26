@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import duckdb
+from .database import local_database
 
 
 def write_demo(directory: Path) -> None:
@@ -24,10 +24,7 @@ def write_demo(directory: Path) -> None:
     )
     if any(path.exists() or path.is_symlink() for path, _ in days):
         raise FileExistsError("A synthetic demo file already exists.")
-    with duckdb.connect(config={
-        "autoinstall_known_extensions": "false",
-        "autoload_known_extensions": "false",
-    }) as db:
+    with local_database() as db:
         db.execute("""
             CREATE TABLE events (
                 site VARCHAR, vehicle VARCHAR, lane VARCHAR, reader VARCHAR,

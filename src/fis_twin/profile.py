@@ -5,6 +5,7 @@ from typing import Any
 
 import duckdb
 
+from .database import local_database
 from .mapping import Field, Mapping, REQUIRED_FIELDS, TIMESTAMP_TYPES
 
 
@@ -70,15 +71,32 @@ def parquet_storage_schema(db: duckdb.DuckDBPyConnection, path: Path) -> tuple[t
     ).fetchall())
 
 
+def parquet_columns(db: duckdb.DuckDBPyConnection, path: Path) -> dict[str, str]:
+    return {
+        name: kind for name, kind, *_ in db.execute(
+            "DESCRIBE SELECT * FROM read_parquet(?, hive_partitioning=false)", [str(path)]
+        ).fetchall()
+    }
+
+
+def mapping_issues(schema: dict[str, str], mapping: Mapping) -> list[dict[str, Any]]:
+    issues = []
+    for field, spec in mapping.fields.items():
+        for name, kind in zip(spec.columns, spec.types, strict=True):
+            actual = schema.get(name)
+            if actual != kind:
+                issues.append({
+                    "field": field, "column": name, "expectedType": kind, "actualType": actual,
+                    "code": "missing_column" if actual is None else "type_mismatch",
+                })
+    return issues
+
+
 def profile_file(
     db: duckdb.DuckDBPyConnection, path: Path, index: int, mapping: Mapping | None
 ) -> dict[str, Any]:
     source = "read_parquet(?, hive_partitioning=false)"
-    schema = {
-        name: kind for name, kind, *_ in db.execute(
-            f"DESCRIBE SELECT * FROM {source}", [str(path)]
-        ).fetchall()
-    }
+    schema = parquet_columns(db, path)
     expressions = ["count(*)"]
     for name, kind in schema.items():
         column = identifier(name)
@@ -98,16 +116,7 @@ def profile_file(
 
     result = {"fileIndex": index, "rowCount": rows, "columns": columns}
     if mapping:
-        issues = []
-        for field, spec in mapping.fields.items():
-            for name, kind in zip(spec.columns, spec.types, strict=True):
-                actual = schema.get(name)
-                if actual != kind:
-                    issues.append({
-                        "field": field, "column": name, "expectedType": kind, "actualType": actual,
-                        "code": "missing_column" if actual is None else "type_mismatch",
-                    })
-        result["mappingIssues"] = issues
+        result["mappingIssues"] = mapping_issues(schema, mapping)
     return result
 
 
@@ -216,10 +225,7 @@ def mapped_quality(
 
 def profile_parquet(inputs: list[Path], mapping: Mapping | None = None) -> dict[str, Any]:
     paths = parquet_paths(inputs)
-    with duckdb.connect(config={
-        "autoload_known_extensions": "false",
-        "autoinstall_known_extensions": "false",
-    }) as db:
+    with local_database() as db:
         files = []
         storage_schemas: dict[tuple[tuple, ...], list[int]] = {}
         for index, path in enumerate(paths, start=1):

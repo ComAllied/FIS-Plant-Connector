@@ -15,12 +15,28 @@
 3. Welche Zeit ist fachlich die Passagezeit? Wie entsteht die Abweichung zwischen nativer Zeit und Quelltext? Welche Uhr- und Zeitzonenregeln gelten bei Normal- und Sommerzeit?
 4. Was bedeutet die Sequenz bei identischem Zeitstempel? Welche Statuswerte stehen für zählbare Passagen, und woran sind erneut exportierte Ereignisse oder Korrekturen erkennbar?
 
-## Umsetzung nach der Mapping-Abstimmung
+## Implementierung und Abnahme
 
-| Abschnitt | Umsetzung und Abnahme |
+| Abschnitt | Ergebnis |
 | --- | --- |
-| 1 · Batch-Discovery | Konsistent typisierte Parquet-Projektion und normalisierte Events. Zusammengesetzte IDs kollisionsfrei kodieren, Status zu ungültigen Zeilen erhalten, deduplizieren nur bei belegter Event-Identität. DuckDB gruppiert über alle Dateien nach Case und ordnet nach bestätigter Ereigniszeit. Der DFG umfasst auch isolierte Lesestellen, Schleifen, Selbstkanten und seltene Übergänge. JSON-Export deterministisch sortieren und mit Mapping- und Eingabeversion versehen. |
-| 1 · Abnahmetests | Synthetische Sollgraphen aus der Roadmap prüfen, insbesondere 360 Sekunden über Mitternacht, keine Übergänge zwischen Cases, getrennte Linien, Wiederholungen, identische Zeitstempel, blockierte Zwischenereignisse und identisches Resultat bei anderer Dateireihenfolge. Eingangszeilen, gültige Events und ausgeschlossene Paare mit Gründen nachvollziehbar zählen. |
-| 2 · Graphanalyse | Ausgangsanteile, Distinct-Case-Anzahl, Zeitquantile, aktive Tage und Hinweise auf große Lücken ergänzen. Ausgangsanteile pro Quelle prüfen. Filteransichten aus dem vollständigen Aggregat ableiten. |
-| 3 · 2D-Frontend | Eine lokale FastAPI liefert den aggregierten Graphen. React und ELK.js visualisieren zunächst ein synthetisches Netz mit Liniengruppen, Schleifen und Querübergängen. Reproduzierbares Layout separat speichern. Suche, Filter, Detailansicht, Pan und Zoom im Browser prüfen. |
-| 4 · Validierung | Laufzeit und Peak-RAM bis rund 2,5 Mio. synthetische Ereignisse messen. Getrennte Zeitfenster und zurückgehaltene Traces vergleichen. Abgleich mit dem Referenznetz bei bestätigter Lesestellengranularität. |
+| 1 · Batch-Discovery | Konfigurierbare Projektion und gerichteter Graph über alle Dateien. Isolierte Lesestellen, Schleifen und Wiederholungen bleiben erhalten. Ein Kandidaten-Mapping ist explizit zu aktivieren. Paare mit unsicherer Reihenfolge, fehlender Lesestelle oder widersprüchlicher Event-ID sind nachvollziehbar ausgeschlossen. |
+| 2 · Graphanalyse | Gewichte, Case-Zahlen, Ausgangsanteile, UTC-Aktivtage, Zeitquantile, lange Lücken und beobachtete Varianten werden aggregiert. Graph und Layout besitzen separate Exporte. |
+| 3 · 2D-Frontend | Lokale FastAPI und React-Oberfläche. Automatisches ELK-Layout für überschaubare Graphen, Linienraster für größere Graphen. Such- und Filteransichten, Zoom und Kanteninspektion greifen auf den vollständigen Graphen zu. |
+| 4 · Validierung | Synthetische Sollgraphen und Browserabläufe geprüft. Die freigegebene Stichprobe wurde lokal als vorläufiger Graph ausgewertet und in getrennten Beobachtungsfenstern verglichen. Referenzvalidierung steht aus. |
+| Aktualisierung | Derselbe Batch-Befehl importiert einen veränderten Dateibestand. Die Synthesetests prüfen Kantenkorrektur bei nachgeliefertem Event, neue Linien, identische Wiederholung sowie den Erhalt des letzten Graphen bei fehlerhaftem Export. |
+
+## Benchmark
+
+`python tests/benchmark_discovery.py` generiert fünf synthetische Dateien mit 2.500.000 Ereignissen, prüft die erwartete Anzahl an Paaren und misst Discovery inklusive CLI-Start und JSON-Ausgabe. Der gemessene Lauf verwendete Linux, drei sichtbare CPUs auf AMD EPYC 9V74 und ein Containerlimit von 8 GiB RAM.
+
+| Parquet-Volumen | Knoten | Kanten | Paare | Generierung | Discovery | Peak-RSS Discovery |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 27,6 MB | 96 | 480 | 2.450.000 | 1,76 s | 13,09 s | 2,26 GiB |
+
+Verteilung, Anzahl und Länge der Cases und Größe des resultierenden Graphen beeinflussen die Laufzeit. Die Kennzahlen gelten für den synthetischen Lauf. Für die freigegebene Stichprobe stehen Kennzahlen und Mapping-Fragen im lokalen Qualitätsbericht. Der Abgleich mit einem geprüften Netz aus dem Quellsystem steht aus.
+
+## Ausgeführte Prüfungen
+
+- 14 Python-Tests für Profiling, Sollgraphen und Dateiaktualisierung.
+- 5 Chromium-Tests für automatische Positionierung, Linienfilter, Detailansicht, Suche, Verschieben, Zoom, Layout-Export und Aktualisierung der Browseransicht. Das Linienraster wurde mit 227 synthetischen Lesestellen geprüft.
+- Lokaler Browser-Smoke-Test des vorläufigen FIS-Graphen mit Abgleich der dargestellten Knotenzahl und Kantenanzahl gegen den Export.

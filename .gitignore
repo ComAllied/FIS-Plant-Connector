@@ -38,6 +38,8 @@ node_modules/
 dist/
 coverage/
 .vite/
+playwright-report/
+test-results/
 
 # OS and editors
 .DS_Store

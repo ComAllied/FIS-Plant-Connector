@@ -7,10 +7,11 @@ name = "fis-twin"
 version = "0.1.0"
 description = "Local profiling and discovery for Parquet event logs"
 requires-python = ">=3.11"
-dependencies = ["duckdb==1.4.4", "PyYAML==6.0.3"]
+dependencies = ["duckdb==1.4.4", "filelock==3.32.7", "PyYAML==6.0.3"]
 
 [project.optional-dependencies]
 test = ["pytest==9.0.2"]
+web = ["fastapi==0.121.3", "uvicorn==0.38.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

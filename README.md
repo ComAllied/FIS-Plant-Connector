@@ -50,9 +50,49 @@ python -m fis_twin.cli profile --input data --output artifacts/profile.json
 
 Fehlende oder typabweichende Mapping-Spalten stehen pro Datei in `mappingIssues`. Der Profiler schreibt den Schemabericht mit `schemaCompatible: false` und `quality: null`. Ein Verzeichnis ohne Parquet-Dateien oder eine unlesbare Datei führt zu einem Fehler. Eine gültige Parquet-Datei mit null Zeilen bleibt im Bericht. Die Demo erzeugt zwei Dateien pro Zielverzeichnis. Für einen erneuten Lauf kann dasselbe Demo-Verzeichnis direkt profiliert werden.
 
-## Status und Entscheidungen
+## Discovery und Browseransicht starten
 
-Phase 0 enthält den Profiler, ein synthetisches Mapping und Tests. Das Produktionsmapping wird fachlich abgestimmt, bevor daraus bestätigte Übergänge abgeleitet werden. Fortschritt und Implementierungsplan stehen in [docs/STATUS.md](docs/STATUS.md) und [docs/DECISIONS.md](docs/DECISIONS.md).
+Für die lokale Ansicht sind Node.js ab 20.19 oder 22 ab 22.12 sowie die Python-Webabhängigkeiten erforderlich. Die folgenden Befehle laufen im Projektordner nach Aktivierung der Python-Umgebung.
+
+```bash
+python -m pip install -e '.[web,test]'
+npm --prefix frontend ci
+npm --prefix frontend run build
+python -m fis_twin.cli discover --input artifacts/demo \
+  --config config/mapping.example.yaml --output artifacts/graph.demo.json
+python -m fis_twin.cli serve --graph artifacts/graph.demo.json
+```
+
+Die Demo-Dateien entstehen mit `demo-data` aus dem vorherigen Abschnitt. Die Ansicht läuft auf der lokalen Loopback-Adresse `http://127.0.0.1:3000`. Sie zeigt Lesestellen und gerichtete Übergänge mit automatischem Layout, Linienfilter, Suche, Zoom und Detailansicht. `Export layout` speichert Koordinaten und Kantenverläufe mit der zugehörigen Graphversion.
+
+## Eigene Parquet-Dateien und neue Tagesexporte
+
+1. Freigegebene Parquet-Dateien unter `data/` ablegen und mit `profile` prüfen. Eine Kopie von `config/mapping.example.yaml` als `config/local.mapping.yaml` speichern und Quellspalten, Typen und Identitätskomponenten eintragen.
+2. Die Rollen von Case-ID, Reader-ID und Passagezeit fachlich bestätigen. Discovery erwartet für die Passagezeit einen Parquet-Zeitstempel mit Zeitzonenbezug. Naive Lokalzeiten vor der Verarbeitung mit der gültigen Quellzeitzone und Sommerzeitregel normalisieren. `event_id` und `sequence_id` nur eintragen, wenn ihre Semantik für Deduplizierung bzw. die Reihenfolge belegt ist.
+3. Den Graphen erzeugen. Für ein abgestimmtes Mapping `status: confirmed` setzen. Für eine vorläufige Sicht `status: candidate` beibehalten und `--allow-candidate` angeben. Die vorläufige Sicht behandelt Zeitgleichstände konservativ und kennzeichnet ihren Status im Export und im Browser.
+
+```bash
+python -m fis_twin.cli discover --input data --config config/local.mapping.yaml \
+  --output artifacts/graph.json
+python -m fis_twin.cli serve --graph artifacts/graph.json
+```
+
+Für ein Update weitere Dateien in dasselbe Eingabeverzeichnis legen und den `discover`-Befehl erneut ausführen. Ein konsistenter, neu berechneter Graph ersetzt die vorige Ausgabe atomar. Dadurch können neue Lesestellen erscheinen und nachträgliche Lesungen bereits beobachtete Übergänge korrigieren. Die laufende Ansicht lädt neue Graphversionen selbst nach. Unbekannte Zusatzspalten werden toleriert. Abweichende gemappte Spalten und unlesbare Dateien werden gemeldet. Bei einem Fehler bleibt die letzte gültige Ausgabe verfügbar.
+
+Der Export enthält beobachtete Nachbarschaften von Lesestellen. Ausgangsanteile beziehen sich auf die gültigen ausgehenden Übergänge des Beobachtungsfensters. Lange Übergänge bleiben erhalten und werden oberhalb von 24 Stunden gekennzeichnet. Mit `--long-gap-seconds` lässt sich der Grenzwert ändern. Das Layout ordnet größere Netze in einem Linienraster an, damit auch dort alle Lesestellen verfügbar bleiben.
+
+## Abnahme und Projektstatus
+
+```bash
+python -m pytest -q
+# Einmalig Chromium für Playwright bereitstellen
+npm --prefix frontend exec -- playwright install chromium
+npm --prefix frontend test
+# Synthetischer Benchmark unter Linux
+python tests/benchmark_discovery.py
+```
+
+Für ein installiertes Chromium kann `FIS_CHROMIUM_PATH` auf dessen Programmpfad gesetzt werden. Das Produktschema und das tatsächliche Netz benötigen weiterhin einen fachlichen Abgleich. Projektstand, Entscheidungen und Story-Abnahme stehen in [STATUS.md](docs/STATUS.md), [DECISIONS.md](docs/DECISIONS.md) und [USER_STORIES.md](docs/USER_STORIES.md).
 
 ## Datenschutz und Unternehmensfreigabe
 
