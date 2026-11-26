@@ -1,0 +1,45 @@
+# Local raw data and derived potentially confidential outputs
+/data/*
+!/data/README.md
+/artifacts/
+/outputs/
+/reports/
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
+*.log
+/config/local.*
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Frontend
+node_modules/
+dist/
+coverage/
+.vite/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/

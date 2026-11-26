@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fis-twin"
+version = "0.1.0"
+description = "Local profiling and discovery for Parquet event logs"
+requires-python = ">=3.11"
+dependencies = ["duckdb==1.4.4", "PyYAML==6.0.3"]
+
+[project.optional-dependencies]
+test = ["pytest==9.0.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

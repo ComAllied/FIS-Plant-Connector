@@ -1,0 +1,24 @@
+schema_version: 1
+status: synthetic
+fields:
+  case_id:
+    columns: [site, vehicle]
+    types: [VARCHAR, VARCHAR]
+  reader_id:
+    columns: [site, lane, reader]
+    types: [VARCHAR, VARCHAR, VARCHAR]
+  event_time:
+    columns: [observed_at]
+    types: [TIMESTAMP WITH TIME ZONE]
+  event_id:
+    columns: [event_key]
+    types: [VARCHAR]
+  sequence_id:
+    columns: [ordering]
+    types: [BIGINT]
+  plant_id:
+    columns: [site]
+    types: [VARCHAR]
+  line_id:
+    columns: [lane]
+    types: [VARCHAR]
